@@ -120,15 +120,7 @@ public class NativeAdExecutor implements Runnable {
 			public void onPageStarted (WebView view, String url, Bitmap favicon) {
 				Log.v(InternalUtils.IM_TAG,"page started:");
 			}
-			public boolean shouldOverrideUrlLoading (WebView view, String url) {
-				boolean load = true;
-				
-				if(url.equals("about:blank")) {
-					
-				}
-				
-				return load;
-			}
+			
 			public void onLoadResource (WebView view, String url) {
 				Log.v(InternalUtils.IM_TAG,"resource load:");
 			}

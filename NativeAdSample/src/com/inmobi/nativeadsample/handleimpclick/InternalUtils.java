@@ -11,7 +11,12 @@ public class InternalUtils {
 	
 	public static final int IM_MAX_WEBVIEW = 3;
 	
+	public static final int IM_CACHE_WINDOW = 10800; // 3 hours, configurable
+	
 	public static String toJSON(Map<String,String> map) {
 		return GSON.toJson(map);
+	}
+	public static long currentTs() {
+		return System.currentTimeMillis();
 	}
 }

@@ -37,7 +37,7 @@ public class NativeAdData implements Serializable {
 		this.contextCode = contextCode;
 		this.additionalParams = params;
 		//for caching purpose
-		ts = System.currentTimeMillis();
+		ts = InternalUtils.currentTs();
 	}
 	
 	public String generateJavascriptString(AdOperationType type) {

@@ -1,5 +1,6 @@
 package com.inmobi.nativeadsample.handleimpclick;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -7,9 +8,14 @@ import java.util.concurrent.Executors;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.inmobi.nativeadsample.handleimpclick.NativeAdData.AdOperationType;
 import com.inmobi.nativeadsample.handleimpclick.NativeAdExecutor.NativeAdExecutorListener;
 
@@ -36,9 +42,13 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 	private ArrayList<NativeAdExecutor> currentExecutingItems;
 	private ExecutorService executorService;
 	private Activity activity;
-	private Context context;
 	private static NativeAdQueue nativeAdQueue;
 	private static final String IM_CACHE_PREF = "im_cache_prefs";
+	private static final String IM_CACHE_PREF_ARRAY = "im_cache_prefs_array";
+	private static final int CHECK_CACHE = 1;
+	private boolean isInitialized = false;
+	private Gson GSON = new Gson();
+	private IMHandler mHandler = new IMHandler();
 	
 	public synchronized static NativeAdQueue sharedQueue() {
 		if (nativeAdQueue == null) {
@@ -51,15 +61,19 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		// avoid publisher instantiating this object
 	}
 
-	public void initialize(Activity a, final Context ctx) {
+	public synchronized void initialize(final Activity a) {
 
+		if(isInitialized) return;
+		
+		isInitialized = true;
+		activity = a;
 		populateNativeAdArrayFromPreferences();
 		webViewWrapperList = new ArrayList<WebViewWrapper>();
 		executorService = Executors.newFixedThreadPool(InternalUtils.IM_MAX_WEBVIEW);
 		
         currentExecutingItems = new ArrayList<NativeAdExecutor>();
-		activity = a;
-		context = ctx;
+		
+		checkAndClearAdDataCache();
 		activity.runOnUiThread(new Runnable() {
 
 			@Override
@@ -67,7 +81,7 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 				// TODO Auto-generated method stub
 				for (int i = 1; i <= InternalUtils.IM_MAX_WEBVIEW; i++) {
 
-					WebViewWrapper wrapper = new WebViewWrapper(context);
+					WebViewWrapper wrapper = new WebViewWrapper(a);
 					wrapper.index = i - 1; // since array object would start
 											// referencing from zero
 					webViewWrapperList.add(wrapper);
@@ -77,20 +91,49 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		});
 	}
 
-	/** TODO retrieving in SharedPreferences */
+	/** TODO test*/
+	@SuppressWarnings("unchecked")
 	private void populateNativeAdArrayFromPreferences() {
 		// TODO Auto-generated method stub
-		nativeAdDataList = new ArrayList<NativeAdData>();
+		SharedPreferences prefs = activity.getSharedPreferences(IM_CACHE_PREF, 0);
+		 String jsonString = prefs.getString(IM_CACHE_PREF_ARRAY, null);
+		 nativeAdDataList = new ArrayList<NativeAdData>();
+		 if(jsonString != null) {
+			 try {
+				 Type listType = new TypeToken<ArrayList<NativeAdData>>(){}.getType();
+				 ArrayList<NativeAdData> arrayList = (ArrayList<NativeAdData>)GSON.fromJson(jsonString, listType);
+				 for(NativeAdData data : arrayList) {
+					 nativeAdDataList.add(data);
+				 }
+			 } catch(Exception e) {e.printStackTrace();}
+		 } 
 	}
 
-	/** TODO storing in SharedPreferences */
+	/** TODO test*/
 	private void storeNativeAdArrayInSharedPreferences() {
-
+		SharedPreferences prefs = activity.getSharedPreferences(IM_CACHE_PREF, 0);
+		SharedPreferences.Editor editor = prefs.edit();
+		try {
+			String toJson = GSON.toJson(nativeAdDataList);
+			editor.putString(IM_CACHE_PREF_ARRAY, toJson);
+		} catch(Exception e) {e.printStackTrace();}
+		editor.commit();
 	}
 
-	/** TODO clearing of NativeAddata object in memory */
-	private void checkAndClearAdDataCache() {
-
+	/** TODO test*/
+	protected void checkAndClearAdDataCache() {
+		
+		mHandler.sendEmptyMessageDelayed(CHECK_CACHE, InternalUtils.IM_CACHE_WINDOW * 1000);
+	    long currentTs = InternalUtils.currentTs();
+	    ArrayList<NativeAdData> tempList = new ArrayList<NativeAdData>();
+	    for (NativeAdData data : nativeAdDataList) {
+	        if (currentTs - data.ts < InternalUtils.IM_CACHE_WINDOW) {
+	            tempList.add(data);
+	        }
+	    }
+	    nativeAdDataList.clear(); nativeAdDataList = null;
+	    this.nativeAdDataList = tempList;
+	    storeNativeAdArrayInSharedPreferences();
 	}
 
 	private boolean isDuplicateOperation(NativeAdData data,
@@ -167,7 +210,7 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 	private synchronized void recordEventInternal(NativeAdData data,
 			AdOperationType operationType) {
 		if (isDuplicateOperation(data, operationType)) {
-			Log.v(InternalUtils.IM_TAG, "returning");
+			Log.v(InternalUtils.IM_TAG, "returning:" + data.ns);
 			return;
 		}
 		WebViewWrapper wrapper = null;
@@ -182,12 +225,11 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		// check for dependency
 		currentExecutingItems.add(executable);
 		executorService.execute(executable);
-		Log.v(InternalUtils.IM_TAG, "execute");
 	}
 
 	private synchronized void recordEvent(String ns, String contextCode,
 			Map<String, String> params, AdOperationType operationType) {
-
+		
 		if (!TextUtils.isEmpty(ns) && !TextUtils.isEmpty(contextCode)) {
 			NativeAdData data = null;
 			for (NativeAdData d : nativeAdDataList) {
@@ -201,7 +243,7 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 				nativeAdDataList.add(data);
 			}
 			data.additionalParams = params;
-			Log.v("IMTAG", "record vent intenral" + ns);
+			
 			recordEventInternal(data, operationType);
 		}
 
@@ -215,7 +257,6 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 	 */
 	public static void recordImpression(String ns, String contextCode,
 			Map<String, String> params) {
-		// Log.v(InternalUtils.IM_TAG,"shared queue=" + sharedQueue());
 		sharedQueue().recordEvent(ns, contextCode, params,
 				AdOperationType.Impression);
 	}
@@ -231,7 +272,6 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 	 */
 	public static void recordClick(String ns, String contextCode,
 			Map<String, String> params) {
-		// Log.v(InternalUtils.IM_TAG,"shared queue=" + sharedQueue());
 		sharedQueue().recordEvent(ns, contextCode, params,
 				AdOperationType.Click);
 	}
@@ -255,5 +295,19 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 	public void executionFailed(NativeAdExecutor e) {
 		// TODO Auto-generated method stub
 		checkAndReAssignWebViewForCompletedExecution(e, false);
+	}
+	
+	
+	public static class IMHandler extends Handler {
+		public void handleMessage(Message msg) {
+			switch(msg.what) {
+				case CHECK_CACHE:
+					nativeAdQueue.checkAndClearAdDataCache();
+					break;
+					default:
+						break;
+			}
+			super.handleMessage(msg);
+		}
 	}
 }

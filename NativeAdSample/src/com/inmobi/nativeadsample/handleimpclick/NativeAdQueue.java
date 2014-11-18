@@ -233,6 +233,9 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		NativeAdExecutor executable = new NativeAdExecutor(wrapper, data, operationType, this, activity);
 		// check for dependency
 		currentExecutingItems.add(executable);
+		if(wrapper != null) {
+			executorService.execute(executable);
+		}
 		
 	}
 

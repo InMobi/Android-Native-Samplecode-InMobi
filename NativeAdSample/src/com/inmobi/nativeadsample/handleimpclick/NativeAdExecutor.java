@@ -25,8 +25,8 @@ public class NativeAdExecutor implements Runnable {
 	public AdOperationType operationType;
 	public WebViewWrapper webViewWrapper;
 	public boolean isExecuting = false;
-	public NativeAdExecutorListener listener;
-	public Activity activity;
+	private NativeAdExecutorListener listener;
+	private Activity activity;
 	private boolean isRequestInProgress = false;
 	
 	public NativeAdExecutor(WebViewWrapper w, NativeAdData d,

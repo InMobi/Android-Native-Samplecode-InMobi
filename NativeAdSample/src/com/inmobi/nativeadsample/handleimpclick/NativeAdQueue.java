@@ -61,6 +61,13 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		// avoid publisher instantiating this object
 	}
 
+	/**
+	 * Inside the onCreate() method of your Main Launcher Activity, 
+	 * initialize the IMNativeQueue to create the required sub-objects & webviews.
+     * @note The initialize() API may be called only once per the lifetime of the application.
+     * Calling this API multiple times fails it silently.
+	 * @param a The Main Lanucher Activity.
+	 */
 	public synchronized void initialize(final Activity a) {
 
 		if(isInitialized) return;
@@ -203,7 +210,9 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		if (notExecuting != null) {
 			notExecuting.webViewWrapper = webViewWrapperList
 					.get(executor.webViewWrapper.index);
+			executorService.execute(notExecuting);
 		}
+		
 		currentExecutingItems.remove(executor);
 	}
 
@@ -224,7 +233,7 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		NativeAdExecutor executable = new NativeAdExecutor(wrapper, data, operationType, this, activity);
 		// check for dependency
 		currentExecutingItems.add(executable);
-		executorService.execute(executable);
+		
 	}
 
 	private synchronized void recordEvent(String ns, String contextCode,

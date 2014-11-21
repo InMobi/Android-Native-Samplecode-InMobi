@@ -24,7 +24,6 @@ public class NativeAdExecutor implements Runnable {
 	public NativeAdData data;
 	public AdOperationType operationType;
 	public WebViewWrapper webViewWrapper;
-	public boolean isExecuting = false;
 	private NativeAdExecutorListener listener;
 	private Activity activity;
 	private boolean isRequestInProgress = false;
@@ -51,6 +50,7 @@ public class NativeAdExecutor implements Runnable {
 			public void run() {
 				// TODO Auto-generated method stub
 				setupWebViewListener();
+				Log.v(InternalUtils.IM_TAG, "loading js:" + js);
 		        webViewWrapper.webView.loadData(js, "text/html", "UTF-8");
 		    } 
 				
@@ -109,11 +109,17 @@ public class NativeAdExecutor implements Runnable {
 	
 	private void setupWebViewListener() {
 		// TODO Auto-generated method stub
+		if(webViewWrapper == null) return;
+		
 		webViewWrapper.webView.setWebViewClient(new WebViewClient() {
 			
 			
 			public void onPageFinished(WebView view, String url) {
 				isRequestInProgress = false;
+				if (webViewWrapper != null)
+				{
+					webViewWrapper.isExecuting = false;
+				}
 				sendSuccessCallback();
 				Log.v(InternalUtils.IM_TAG,"page finished:" + data.ns);
             }
@@ -128,7 +134,11 @@ public class NativeAdExecutor implements Runnable {
 				Log.v(InternalUtils.IM_TAG,"received error:" + errorCode + "\tdesc:" + description
 						+ "\n" + failingUrl);
 				//handle failure cases
-				
+				isRequestInProgress = false;
+				if (webViewWrapper != null)
+				{
+					webViewWrapper.isExecuting = false;
+				}
 			}
 			
 		});
@@ -140,6 +150,9 @@ public class NativeAdExecutor implements Runnable {
 			listener.executionSuccedeed(this);
 		}
 	}
+	/**
+	 * TODO handle failure cases
+	 */
 	private void sendFailureCallback() {
 		// TODO Auto-generated method stub
 		if(listener != null) {

@@ -202,7 +202,7 @@ public class NativeAdQueue implements NativeAdExecutorListener {
 		updateCachedAdData(executor, success);
 		NativeAdExecutor notExecuting = null;
 		for (NativeAdExecutor e : currentExecutingItems) {
-			if (!e.isExecuting && e.webViewWrapper == null) {
+			if (e.webViewWrapper == null || !e.webViewWrapper.isExecuting) {
 				notExecuting = e;
 				break;
 			}

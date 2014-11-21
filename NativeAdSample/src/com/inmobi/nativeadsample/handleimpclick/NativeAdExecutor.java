@@ -109,7 +109,10 @@ public class NativeAdExecutor implements Runnable {
 	
 	private void setupWebViewListener() {
 		// TODO Auto-generated method stub
-		if(webViewWrapper == null) return;
+		if(webViewWrapper == null) {
+			isRequestInProgress = false;
+			return;
+		}
 		
 		webViewWrapper.webView.setWebViewClient(new WebViewClient() {
 			
